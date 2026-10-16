@@ -4,8 +4,11 @@
 #   docker compose up -d --build      then open http://localhost:8080
 
 x-airflow-common: &airflow-common
-  build: ./docker/airflow
+  # Built ONCE (by airflow-init, below) and reused by every Airflow service.
+  # If every service had its own `build:`, Compose would build the same image in parallel
+  # and the tag would collide ("image ... already exists").
   image: merchant-dq-airflow:latest
+  pull_policy: never
   env_file: [.env]
   environment: &airflow-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -49,6 +52,7 @@ services:
 
   airflow-init:
     <<: *airflow-common
+    build: ./docker/airflow
     command: version
     environment:
       <<: *airflow-env
