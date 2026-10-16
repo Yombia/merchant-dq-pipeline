@@ -1,4 +1,9 @@
-{{ config(unique_key='product_id') }}
+{{ config(
+    unique_key='product_id',
+    post_hook=[
+        "create index if not exists ix_{{ this.name }}__product_id on {{ this }} (product_id)",
+    ],
+) }}
 
 select
     p.product_id,

@@ -127,13 +127,29 @@ def collect_quarantine(batch_date: str, conn) -> list[CheckResult]:
     return results
 
 
+def gate_failed(conn, run_id: str, batch_date: str) -> bool:
+    with conn.cursor() as cur:
+        cur.execute(
+            """SELECT 1 FROM dq.dq_results
+               WHERE run_id = %s AND batch_date = %s AND layer = 'landing' AND status = 'fail'
+               LIMIT 1""",
+            (run_id, batch_date),
+        )
+        return cur.fetchone() is not None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--date", required=True)
+    parser.add_argument("--skip-if-gate-failed", action="store_true",
+                        help="exit 99 (Airflow: skipped) if this run's landing gate blocked the batch")
     args = parser.parse_args()
     run_id = run_id_for(args.date)
 
     with get_conn() as conn:
+        if args.skip_if_gate_failed and gate_failed(conn, run_id, args.date):
+            print(f"Landing gate blocked {args.date} in this run: nothing was loaded, nothing to collect.")
+            return 99
         results = collect_dbt(args.date, run_id, conn) + collect_quarantine(args.date, conn)
         write_results(conn, run_id, results)
 

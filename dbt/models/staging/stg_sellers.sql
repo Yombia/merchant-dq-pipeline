@@ -1,4 +1,9 @@
-{{ config(unique_key='seller_id') }}
+{{ config(
+    unique_key='seller_id',
+    post_hook=[
+        "create index if not exists ix_{{ this.name }}__seller_id on {{ this }} (seller_id)",
+    ],
+) }}
 
 -- Latest known state of each seller (merchant). History is NOT kept here:
 -- the snapshot snap_sellers turns changes of this table into SCD Type 2 versions.

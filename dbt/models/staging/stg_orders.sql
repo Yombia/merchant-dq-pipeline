@@ -1,4 +1,9 @@
-{{ config(unique_key='order_id') }}
+{{ config(
+    unique_key='order_id',
+    post_hook=[
+        "create index if not exists ix_{{ this.name }}__order_id on {{ this }} (order_id)",
+    ],
+) }}
 
 -- Clean orders, typed. Incremental: each run upserts one batch (delete+insert on order_id),
 -- so re-running a day replaces that day's rows instead of duplicating them.

@@ -4,9 +4,9 @@
 COMPOSE := docker compose
 RUN     := $(COMPOSE) exec airflow-scheduler
 
-.PHONY: up down nuke bootstrap run backfill verify idempotency psql test lint
+.PHONY: up down nuke prepare bootstrap run backfill verify idempotency benchmark psql test lint
 
-up:          ## build and start the stack (Airflow UI on http://localhost:8080)
+up:          ## build and start the stack (Airflow :8080, dashboard :8501)
 	$(COMPOSE) up -d --build
 
 down:        ## stop the stack, keep data
@@ -15,7 +15,10 @@ down:        ## stop the stack, keep data
 nuke:        ## stop the stack and delete the warehouse volume
 	$(COMPOSE) down -v
 
-bootstrap:   ## clean warehouse, build landing batches + chaos, run initial load
+prepare:     ## clean warehouse, build landing batches + chaos; then unpause the DAG in Airflow
+	$(RUN) bash scripts/bootstrap.sh --reset --prepare-only
+
+bootstrap:   ## same as prepare, plus the initial load from the shell (no Airflow)
 	$(RUN) bash scripts/bootstrap.sh --reset
 
 run:         ## run one batch:  make run DATE=2018-08-05
@@ -30,6 +33,9 @@ verify:      ## prove every injected defect was detected
 idempotency: ## re-run one day and prove no table changed:  make idempotency DATE=2018-08-02
 	$(RUN) python -m ingestion.check_idempotency --date $(DATE)
 
+benchmark:   ## index tuning before/after -> docs/performance.md
+	$(RUN) python -m ingestion.benchmark
+
 psql:        ## open a SQL shell on the warehouse
 	$(COMPOSE) exec postgres psql -U dwh -d dwh
 
@@ -37,4 +43,4 @@ test:        ## unit tests (no database needed)
 	$(RUN) python -m pytest -q
 
 lint:
-	$(RUN) python -m ruff check ingestion tests airflow
+	$(RUN) python -m ruff check ingestion tests airflow dashboard

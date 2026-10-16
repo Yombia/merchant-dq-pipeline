@@ -1,0 +1,101 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-unit:
+    name: Lint + unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pandas psycopg2-binary pytest ruff
+      - name: Lint
+        run: ruff check ingestion tests airflow dashboard
+      - name: Unit tests (DAG tests are skipped here, they run in the next job)
+        run: python -m pytest -q
+
+  dag-integrity:
+    name: Airflow DAG integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Airflow 3.2.2 (official constraints)
+        run: |
+          pip install uv
+          uv pip install --system "apache-airflow==3.2.2" pytest \
+            --constraint https://raw.githubusercontent.com/apache/airflow/constraints-3.2.2/constraints-3.12.txt
+      - name: DAG loads, schedule and task order are as designed
+        run: |
+          export AIRFLOW_HOME="$RUNNER_TEMP/airflow"
+          airflow db migrate > /dev/null
+          python -m pytest -q tests/test_dag.py
+
+  pipeline:
+    name: End-to-end pipeline + chaos verification
+    needs: lint-and-unit
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dwh
+          POSTGRES_PASSWORD: dwh
+          POSTGRES_DB: dwh
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dwh" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DWH_HOST: localhost
+      DWH_PORT: "5432"
+      DWH_USER: dwh
+      DWH_PASSWORD: dwh
+      DWH_DB: dwh
+      PYTHON: python
+      DBT_SEND_ANONYMOUS_USAGE_STATS: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pandas psycopg2-binary dbt-core==1.12.6 dbt-postgres==1.11.0
+      - name: Generate synthetic Olist-shaped source data
+        run: python -m tests.fixtures.make_fixture --out data/source
+      - name: Bootstrap (schemas, landing batches, chaos, initial load)
+        run: bash scripts/bootstrap.sh --reset
+      - name: Replay 2018-08-01..2018-08-28
+        run: |
+          bash scripts/backfill.sh 2018-08-01 2018-08-28 | tee backfill.log
+          # exactly the two sabotaged days must be blocked, nothing else
+          grep -q "26 ok, 2 failed 2018-08-15 2018-08-17" backfill.log
+      - name: Every injected defect was detected
+        run: python -m ingestion.verify_chaos --report chaos_report.md
+      - name: Re-running a day changes nothing
+        run: python -m ingestion.check_idempotency --date 2018-08-02
+      - name: dbt docs
+        working-directory: dbt
+        run: dbt docs generate --profiles-dir . --vars "{batch_date: '2018-08-28'}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pipeline-evidence
+          path: |
+            chaos_report.md
+            backfill.log
+            logs/backfill/
+            dbt/target/index.html
+            dbt/target/manifest.json
+            dbt/target/catalog.json
+          if-no-files-found: ignore

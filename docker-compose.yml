@@ -1,7 +1,9 @@
-# Local stack: one Postgres (Airflow metadata + warehouse) and Airflow 3 with LocalExecutor.
-# Lean on purpose (no Redis/Celery): fits comfortably on a laptop.
+# Local stack: one Postgres (Airflow metadata + warehouse), Airflow 3 with LocalExecutor,
+# and a Streamlit data-quality dashboard. Lean on purpose (no Redis/Celery): fits on a laptop.
 #
-#   docker compose up -d --build      then open http://localhost:8080
+#   docker compose up -d --build
+#   Airflow:   http://localhost:8080
+#   Dashboard: http://localhost:8501
 
 x-airflow-common: &airflow-common
   # Built ONCE (by airflow-init, below) and reused by every Airflow service.
@@ -99,6 +101,22 @@ services:
       <<: *airflow-depends-on
       airflow-init:
         condition: service_completed_successfully
+
+  dashboard:
+    build: ./docker/dashboard
+    image: merchant-dq-dashboard:latest
+    env_file: [.env]
+    environment:
+      DWH_HOST: postgres
+      DWH_PORT: "5432"
+    volumes:
+      - ./:/opt/project:ro
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   pgdata:

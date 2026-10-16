@@ -1,3 +1,7 @@
+-- Rebuilt every run (table), so the index is unnamed: a fixed name would still be held by
+-- the previous copy of the table while dbt swaps it out, and "if not exists" would skip it.
+{{ config(post_hook=["create index on {{ this }} (seller_id, valid_from)"]) }}
+
 -- Seller dimension, SCD Type 2: one row per VERSION of a seller.
 -- A fact joins to the version that was valid when the order was placed, so a seller who
 -- moved from SP to RJ keeps old sales in SP and new sales in RJ.

@@ -1,4 +1,9 @@
-{{ config(unique_key='customer_id') }}
+{{ config(
+    unique_key='customer_id',
+    post_hook=[
+        "create index if not exists ix_{{ this.name }}__customer_id on {{ this }} (customer_id)",
+    ],
+) }}
 
 -- Olist issues a new customer_id per order; customer_unique_id identifies the person.
 

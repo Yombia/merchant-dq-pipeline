@@ -1,4 +1,10 @@
-{{ config(unique_key=['order_id', 'payment_sequential']) }}
+{{ config(
+    unique_key=['order_id', 'payment_sequential'],
+    post_hook=[
+        "create index if not exists ix_{{ this.name }}__order_id_payment_sequential on {{ this }} (order_id, payment_sequential)",
+        "create index if not exists ix_{{ this.name }}__batch_date on {{ this }} (_batch_date)",
+    ],
+) }}
 
 select
     trim(order_id)                          as order_id,

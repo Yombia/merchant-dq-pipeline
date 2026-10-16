@@ -1,7 +1,12 @@
 {{ config(
     materialized='incremental',
     incremental_strategy='delete+insert',
-    unique_key=['order_id', 'order_item_id']
+    unique_key=['order_id', 'order_item_id'],
+    post_hook=[
+        "create index if not exists ix_{{ this.name }}__order_id_order_item_id on {{ this }} (order_id, order_item_id)",
+        "create index if not exists ix_{{ this.name }}__seller_id_purchased_at on {{ this }} (seller_id, purchased_at)",
+        "create index if not exists ix_{{ this.name }}__date_key on {{ this }} (date_key)",
+    ],
 ) }}
 
 -- Grain: one row per item in an order. Incremental: only this batch's items are processed.

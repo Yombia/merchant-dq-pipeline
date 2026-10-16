@@ -7,11 +7,12 @@ COPY the file in. Re-running the same date always ends with exactly one copy of 
 from __future__ import annotations
 
 import argparse
+import shutil
 import sys
 
 from psycopg2 import sql
 
-from ingestion.common import CONTRACTS, batch_dir, get_conn
+from ingestion.common import CONTRACTS, DBT_DIR, batch_dir, get_conn
 
 
 def load_entity(conn, entity: str, batch_date: str, path) -> int:
@@ -46,6 +47,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--date", required=True, help="batch date, YYYY-MM-DD")
     args = parser.parse_args()
+
+    # A fresh load invalidates any dbt artifacts left by an earlier run of this batch,
+    # so the DQ collector can never pick up stale test results.
+    shutil.rmtree(DBT_DIR / "target" / args.date, ignore_errors=True)
 
     folder = batch_dir(args.date)
     with get_conn() as conn:

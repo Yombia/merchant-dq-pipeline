@@ -1,7 +1,11 @@
 {{ config(
     materialized='incremental',
     incremental_strategy='delete+insert',
-    unique_key=['order_id', 'payment_sequential']
+    unique_key=['order_id', 'payment_sequential'],
+    post_hook=[
+        "create index if not exists ix_{{ this.name }}__order_id_payment_sequential on {{ this }} (order_id, payment_sequential)",
+        "create index if not exists ix_{{ this.name }}__date_key on {{ this }} (date_key)",
+    ],
 ) }}
 
 -- Grain: one row per payment record of an order (an order can be split across
