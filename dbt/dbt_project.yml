@@ -1,0 +1,64 @@
+name: merchant_dq
+version: "1.0.0"
+config-version: 2
+profile: merchant_dq
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+snapshot-paths: ["snapshots"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # The batch being processed. Every incremental model and every raw-layer test
+  # only looks at this batch, so one daily run touches one day of data.
+  batch_date: "2018-07-31"
+
+  # Allowed value domains, shared by the validation models and the tests.
+  order_statuses: ["delivered", "shipped", "canceled", "unavailable", "invoiced", "processing", "created", "approved"]
+  payment_types: ["credit_card", "boleto", "voucher", "debit_card", "not_defined"]
+  br_states: ["AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB",
+              "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"]
+
+  # Tolerance (in BRL) when reconciling payments against item price + freight.
+  payment_tolerance: 1.00
+
+models:
+  merchant_dq:
+    staging:
+      +schema: staging
+      +materialized: incremental
+      +incremental_strategy: delete+insert
+      +on_schema_change: fail
+      validated:
+        +materialized: ephemeral
+      quarantine:
+        +schema: quarantine
+    marts:
+      +schema: mart
+      +materialized: table
+
+seeds:
+  merchant_dq:
+    +schema: reference
+
+snapshots:
+  merchant_dq:
+    +schema: snapshots
+
+data_tests:
+  merchant_dq:
+    # Raw-layer tests describe what arrived from the source. They only WARN:
+    # bad rows are expected and get quarantined downstream, so they must not stop the batch.
+    raw:
+      +severity: warn
+      +where: "_batch_date = '{{ var('batch_date', '2018-07-31') }}'"
+    # After cleaning, staging and marts must be correct. A failure here is critical.
+    staging:
+      +severity: error
+    marts:
+      +severity: error
+
+flags:
+  send_anonymous_usage_stats: false

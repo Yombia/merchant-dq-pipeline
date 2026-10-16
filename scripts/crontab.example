@@ -1,0 +1,12 @@
+# Housekeeping jobs that don't need an orchestrator, as plain cron entries.
+# Install inside a container/host with:  crontab scripts/crontab.example
+# (paths assume the project is at /opt/project, as in docker-compose.yml)
+
+# Every night 02:30 - refresh planner statistics on the warehouse after the daily load
+30 2 * * *  psql -h postgres -U dwh -d dwh -c "VACUUM (ANALYZE) raw.orders, raw.order_items, raw.payments; ANALYZE;" >> /opt/project/logs/cron.log 2>&1
+
+# Every Sunday 03:00 - delete landing batches older than 30 days (raw keeps the data)
+0 3 * * 0   find /opt/project/data/landing -mindepth 1 -maxdepth 1 -type d -mtime +30 -exec rm -rf {} + >> /opt/project/logs/cron.log 2>&1
+
+# Every Sunday 03:15 - drop per-batch dbt artifacts older than 14 days
+15 3 * * 0  find /opt/project/dbt/target -mindepth 1 -maxdepth 1 -type d -name '20*' -mtime +14 -exec rm -rf {} + >> /opt/project/logs/cron.log 2>&1

@@ -1,0 +1,11 @@
+snapshots:
+  - name: snap_sellers
+    description: >
+      SCD Type 2 history of sellers. When a seller's attributes change (e.g. relocation),
+      the old row is closed (dbt_valid_to set) and a new version is opened.
+      Timestamp strategy on updated_at (= batch date), so validity follows business dates.
+    relation: ref('stg_sellers')
+    config:
+      unique_key: seller_id
+      strategy: timestamp
+      updated_at: updated_at

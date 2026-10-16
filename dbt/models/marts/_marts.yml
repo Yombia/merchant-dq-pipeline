@@ -1,0 +1,82 @@
+version: 2
+
+# Marts = the star schema analysts query. Tests here guard the model's integrity:
+# every fact row must resolve to its dimensions, and SCD2 history must be consistent.
+
+models:
+  - name: fact_order_items
+    description: Grain = one item of one order. Measures price, freight_value, item_total.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [order_id, order_item_id]
+    columns:
+      - name: seller_key
+        description: SCD2 seller version valid at purchase time.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_seller'), field: seller_key}
+      - name: customer_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_customer'), field: customer_key}
+      - name: product_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_product'), field: product_key}
+      - name: date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_date'), field: date_key}
+
+  - name: fact_payments
+    description: Grain = one payment record of one order.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [order_id, payment_sequential]
+    columns:
+      - name: customer_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_customer'), field: customer_key}
+      - name: date_key
+        data_tests:
+          - relationships:
+              arguments: {to: ref('dim_date'), field: date_key}
+
+  - name: dim_seller
+    description: SCD Type 2 seller dimension (one row per version).
+    columns:
+      - name: seller_key
+        data_tests: [not_null, unique]
+      - name: seller_id
+        data_tests:
+          - one_current_version
+          - no_overlapping_versions
+
+  - name: dim_customer
+    columns:
+      - name: customer_key
+        data_tests: [not_null, unique]
+
+  - name: dim_product
+    columns:
+      - name: product_key
+        data_tests: [not_null, unique]
+
+  - name: dim_date
+    columns:
+      - name: date_key
+        data_tests: [not_null, unique]
+
+  - name: mart_seller_daily
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [seller_id, order_date]

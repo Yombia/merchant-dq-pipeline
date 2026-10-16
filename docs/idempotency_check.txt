@@ -1,0 +1,28 @@
+Re-ran batch 2018-08-02 (exit code 0); compared 26 tables.
+  mart.dim_customer                   95,556 ->    95,556  same
+  mart.dim_date                        1,461 ->     1,461  same
+  mart.dim_product                    32,777 ->    32,777  same
+  mart.dim_seller                      3,089 ->     3,089  same
+  mart.fact_order_items              112,956 ->   112,956  same
+  mart.fact_payments                 104,170 ->   104,170  same
+  mart.mart_seller_daily              68,620 ->    68,620  same
+  quarantine.customers                     0 ->         0  same
+  quarantine.order_items                  39 ->        39  same
+  quarantine.orders                       10 ->        10  same
+  quarantine.payments                     11 ->        11  same
+  quarantine.products                      0 ->         0  same
+  quarantine.sellers                       0 ->         0  same
+  raw.customers                       99,733 ->    99,733  same
+  raw.order_items                    112,995 ->   112,995  same
+  raw.orders                          99,738 ->    99,738  same
+  raw.payments                       104,181 ->   104,181  same
+  raw.products                        32,777 ->    32,777  same
+  raw.sellers                          3,089 ->     3,089  same
+  snapshots.snap_sellers               3,089 ->     3,089  same
+  staging.stg_customers               99,733 ->    99,733  same
+  staging.stg_order_items            112,956 ->   112,956  same
+  staging.stg_orders                  99,728 ->    99,728  same
+  staging.stg_payments               104,170 ->   104,170  same
+  staging.stg_products                32,777 ->    32,777  same
+  staging.stg_sellers                  3,084 ->     3,084  same
+Idempotent: identical row counts in every table.

@@ -1,0 +1,76 @@
+version: 2
+
+# Staging = cleaned, typed, deduplicated. Invalid rows were moved to the quarantine schema,
+# so every test here MUST pass. A failure means the cleaning logic itself is broken
+# and the batch is stopped (severity: error, set in dbt_project.yml).
+
+models:
+  - name: stg_orders
+    description: One row per valid order.
+    columns:
+      - name: order_id
+        data_tests: [not_null, unique]
+      - name: customer_id
+        data_tests: [not_null]
+      - name: purchased_at
+        data_tests: [not_null]
+      - name: order_status
+        data_tests:
+          - accepted_values_var:
+              arguments: {var_name: order_statuses}
+
+  - name: stg_order_items
+    description: One row per valid order item.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [order_id, order_item_id]
+    columns:
+      - name: seller_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('stg_sellers'), field: seller_id}
+      - name: order_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('stg_orders'), field: order_id}
+      - name: price
+        data_tests: [not_null]
+
+  - name: stg_payments
+    description: One row per valid payment installment record.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [order_id, payment_sequential]
+    columns:
+      - name: payment_type
+        data_tests:
+          - accepted_values_var:
+              arguments: {var_name: payment_types}
+      - name: payment_value
+        data_tests: [not_null]
+
+  - name: stg_customers
+    columns:
+      - name: customer_id
+        data_tests: [not_null, unique]
+
+  - name: stg_sellers
+    description: Latest state per seller; history lives in snap_sellers (SCD2).
+    columns:
+      - name: seller_id
+        data_tests: [not_null, unique]
+      - name: seller_state
+        data_tests:
+          - accepted_values_var:
+              arguments: {var_name: br_states}
+
+  - name: stg_products
+    columns:
+      - name: product_id
+        data_tests: [not_null, unique]
+      - name: product_category
+        data_tests: [not_null]
