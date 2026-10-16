@@ -86,7 +86,8 @@ jobs:
         run: python -m ingestion.check_idempotency --date 2018-08-02
       - name: dbt docs
         working-directory: dbt
-        run: dbt docs generate --profiles-dir . --vars "{batch_date: '2018-08-28'}"
+        run: |
+          dbt docs generate --profiles-dir . --vars "{batch_date: '2018-08-28'}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
