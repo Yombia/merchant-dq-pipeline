@@ -16,7 +16,7 @@ declare -a ok=() failed=()
 d="$START"
 while [[ "$d" < "$END" || "$d" == "$END" ]]; do
   printf '%s ... ' "$d"
-  if "$ROOT/scripts/run_batch.sh" "$d" > "$LOG_DIR/$d.log" 2>&1; then
+  if bash "$ROOT/scripts/run_batch.sh" "$d" > "$LOG_DIR/$d.log" 2>&1; then
     echo "ok"; ok+=("$d")
   else
     echo "FAILED (log: logs/backfill/$d.log)"; failed+=("$d")

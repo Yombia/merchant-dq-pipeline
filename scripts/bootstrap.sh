@@ -59,6 +59,6 @@ if $PREPARE_ONLY; then
 fi
 
 log "running the initial historical load"
-"$ROOT/scripts/run_batch.sh" 2018-07-31
+bash "$ROOT/scripts/run_batch.sh" 2018-07-31
 
 log "done. Next: scripts/backfill.sh 2018-08-01 2018-08-28  (or trigger the Airflow DAG)"
